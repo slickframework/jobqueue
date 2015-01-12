@@ -1,0 +1,33 @@
+{
+  "name": "slick/job_queue",
+  "description": "Simple job queue (deferred-task) library for Slick Framework.",
+  "minimum-stability": "dev",
+  "license": "MIT",
+  "type": "library",
+  "keywords": [
+    "Queue", "deferred-task", "Job queue", "Background runner", "worker"
+  ],
+  "authors": [
+    {
+      "name": "Filipe Silva",
+      "email": "silvam.filipe@gmail.com"
+    }
+  ],
+  "require": {
+
+  },
+  "require-dev": {
+    "codeception/codeception": "2.1.*@dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "Slick\\JobQueue\\": "src"
+    }
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-master": "0.0-dev",
+      "dev-develop": "1.0-dev"
+    }
+  }
+}
