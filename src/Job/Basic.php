@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Job status
+ * Basic job
  *
  * @package   Slick\JobQueue\Job
  * @author    Filipe Silva <silvam.filipe@gmail.com>
@@ -12,24 +12,24 @@
 
 namespace Slick\JobQueue\Job;
 
+use Slick\JobQueue\Model\Task;
+
 /**
- * Job status
+ * Basic job
  *
  * @package   Slick\JobQueue\Job
  * @author    Filipe Silva <silvam.filipe@gmail.com>
  */
-abstract class Status
+class Basic extends Task implements JobInterface
 {
 
-    /**#@+
-     * @var string Job states
+    /**
+     * Executes a job and returns its status
+     *
+     * @return Status
      */
-    const Queued    = 'queued';
-    const Ongoing   = 'ongoing';
-    const Postponed = 'postponed';
-    const Done      = 'done';
-    const Fail      = 'fail';
-    /**#@- */
-
-    const __default = self::Queued;
+    public function execute()
+    {
+        return Status::Done;
+    }
 }

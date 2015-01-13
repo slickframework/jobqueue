@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * Database job queue
+ *
+ * @package   Slick\JobQueue\Queue
+ * @author    Filipe Silva <silvam.filipe@gmail.com>
+ * @copyright 2015 SlickFramework
+ * @license   http://www.opensource.org/licenses/mit-license.php MIT License
+ * @since     Version 1.0.0
+ */
+
+namespace Slick\JobQueue\Queue;
+
+use Slick\Common\Base;
+use Slick\Database\Sql;
+use Slick\JobQueue\Job\JobInterface;
+use Slick\JobQueue\JobQueueInterface;
+use Slick\Database\Adapter\AdapterInterface;
+
+/**
+ * Database job queue
+ *
+ * @package   Slick\JobQueue\Queue
+ * @author    Filipe Silva <silvam.filipe@gmail.com>
+ *
+ * @property AdapterInterface $adapter
+ * @property string $tableName
+ * @property \DateTime $queryDate
+ */
+class Database extends Base implements JobQueueInterface
+{
+    /**
+     * @readwrite
+     * @var AdapterInterface
+     */
+    protected $_adapter;
+
+    /**
+     * @readwrite
+     * @var string
+     */
+    protected $_tableName = 'tasks';
+
+    /**
+     * @readwrite
+     * @var \DateTime
+     */
+    protected $_queryDate;
+
+    /**
+     * @var array
+     */
+    protected static $_namespaces = [
+        '\Slick\JobQueue\Job'
+    ];
+
+    /**
+     * Gets query date for next job retrieve
+     *
+     * @return \DateTime
+     */
+    public function getQueryDate()
+    {
+        if (is_null($this->_queryDate)) {
+            $date = new \DateTime('now', new \DateTimeZone('UTC'));
+            $this->_queryDate = $date;
+        }
+        return $this->_queryDate;
+    }
+
+    /**
+     * Returns next job in the queue
+     *
+     * If there is no more jobs to do, null will be returned
+     *
+     * @return JobInterface|null
+     */
+    public function next()
+    {
+    $record = Sql::createSql($this->adapter)
+            ->select($this->tableName)
+            ->where(
+                [
+                    'notBefore <= :date' => [
+                        ':date' => $this->getQueryDate()
+                            ->format('Y-m-d H:i:s')
+                    ]
+                ]
+            )
+            ->order('notBefore ASC')
+            ->first();
+        if (is_null($record)) {
+            return null;
+        }
+
+        $reflection = new \ReflectionClass(
+            $this->getClass($record['type'])
+        );
+
+        return $reflection->newInstanceArgs([$record]);
+    }
+
+    /**
+     * Adds a job to the queue
+     * @param JobInterface $job
+     * @return JobQueueInterface
+     */
+    public function add(JobInterface $job)
+    {
+        // TODO: Implement add() method.
+    }
+
+    /**
+     * Places a job after it been executed
+     *
+     * @param JobInterface $job
+     * @return JobQueueInterface
+     */
+    public function finish(JobInterface $job)
+    {
+        // TODO: Implement finish() method.
+    }
+
+    /**
+     * Adds a namespace where to look for job classes
+     * @param string $namespace
+     */
+    public static function addNamespace($namespace)
+    {
+        if (!in_array($namespace, static::$_namespaces)) {
+            array_unshift(static::$_namespaces, $namespace);
+        }
+    }
+
+    /**
+     * Checks and returns the job class name for the given name/alias
+     *
+     * If an alias is given it will check the class name on all namespaces
+     * present on Database::$_namespaces property
+     *
+     * @param string $alias
+     * @return string
+     *
+     * @throws \UnexpectedValueException If there are no classes for the given
+     *  name or alias.
+     */
+    public function getClass($alias)
+    {
+        if ($this->_checkClass($alias)) {
+            return $alias;
+        }
+
+        foreach (static::$_namespaces as $namespace) {
+            $className = $namespace.'\\'.$alias;
+            if ($this->_checkClass($className)) {
+                return $className;
+            }
+        }
+
+        throw new \UnexpectedValueException(
+            "Class '{$alias}' does not exists."
+        );
+
+    }
+
+    /**
+     * Check if a given class name exists and implements the correct
+     * Job interface
+     *
+     * @param string $className
+     * @return bool
+     *
+     * @throws \InvalidArgumentException If the class exists and it does not
+     *  implements the <<\Slick\JobQueue\Job\JobInterface>> interface.
+     */
+    protected function _checkClass($className)
+    {
+        if (class_exists($className)) {
+            $reflection = new \ReflectionClass($className);
+            $ifc = '\Slick\JobQueue\Job\JobInterface';
+            if (! $reflection->implementsInterface($ifc)) {
+                throw new \InvalidArgumentException(
+                    "Class '{$className}' does not implements <<{$ifc}>> interface."
+                );
+            }
+            return true;
+        }
+        return false;
+    }
+}
