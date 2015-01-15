@@ -13,6 +13,7 @@
 namespace Slick\JobQueue;
 
 use Slick\Common\Base;
+use Psr\Log\LoggerInterface;
 use Slick\JobQueue\Job\Basic;
 use Slick\JobQueue\Worker\WorkerInterface;
 
@@ -63,6 +64,12 @@ class Worker extends Base implements WorkerInterface
     protected $_jobsExecuted = 0;
 
     /**
+     * @readwrite
+     * @var LoggerInterface
+     */
+    protected $_logger;
+
+    /**
      * Starts this worker
      * @return self
      */
@@ -70,14 +77,17 @@ class Worker extends Base implements WorkerInterface
     {
         $start = time();
         $exit = false;
+        $this->_logger->info("Staring worker...\n----------------------------");
         while (!$exit) {
             /** @var Basic $job */
             $job = $this->_jobQueue->next();
             if ($job) {
                 $job->worker = $this;
+                $this->_logger->info("Executing job...");
                 $job->status = $job->execute();
                 $this->_jobsExecuted++;
                 $this->_jobQueue->finish($job);
+                $this->_logger->info("... done!\n");
             } else {
                 if ($this->_exitWhenNothingToDo) {
                     $exit = true;
@@ -88,9 +98,11 @@ class Worker extends Base implements WorkerInterface
             if ($this->_timeout <= $now) {
                 $exit = true;
             } else {
+                $this->_logger->info("No more jobs. Sleeping for {$this->_sleepTime} seconds\n");
                 sleep($this->_sleepTime);
             }
         }
+        $this->_logger->info("----------------------------\nI finish my work. {$this->jobsExecuted} job(s) executed.\n");
 
     }
 }

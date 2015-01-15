@@ -1,0 +1,43 @@
+#!/usr/bin/env php
+<?php
+
+$files = [
+    dirname(dirname(__DIR__)) . '/vendor/autoload.php',
+    './vendor/autoload.php',
+    dirname(dirname(__DIR__)) . '/autoload.php'
+
+];
+
+foreach($files as $file) {
+    if (is_file($file)) {
+        include_once $file;
+        break;
+    }
+}
+
+use Symfony\Component\Console\Application;
+
+$queue = \Codeception\Util\Stub::makeEmpty('Slick\JobQueue\Queue\Database',  [
+    'next' => function() {
+        static $count;
+        if (!$count) {
+            $count = 0;
+        }
+        $job = new \Slick\JobQueue\Job\Basic();
+        return ($count++ == 0) ? $job : null;
+    },
+    'finish' => function(\Slick\JobQueue\Job\JobInterface $job) {
+        return true;
+    }
+]);
+$cfg = new \Slick\Configuration\Driver\Php([
+    'file' => dirname(__FILE__) . '/worker.php'
+]);
+$command = new \Slick\JobQueue\Console\QueueCommand($queue, $cfg);
+
+$application = new Application("JobQueue", '1.0.0');
+
+// Adding MVC commands to cli application
+$application->add($command);
+
+$application->run();

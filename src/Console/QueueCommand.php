@@ -12,12 +12,16 @@
 
 namespace Slick\JobQueue\Console;
 
-use Slick\Configuration\Driver\DriverInterface;
-use Slick\JobQueue\JobQueueInterface;
+use Monolog\Logger;
+use Slick\JobQueue\Logger\Handler\ConsoleHandler;
 use Slick\JobQueue\Worker;
+use Psr\Log\LoggerInterface;
+use Slick\JobQueue\JobQueueInterface;
+use Slick\Configuration\Driver\DriverInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+
 
 /**
  * Queue command
@@ -86,8 +90,20 @@ class QueueCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $worker = new Worker($this->_config->get(self::CFG_KEY));
+
+        $logger = new Logger('Queue command');
+        $handler = new ConsoleHandler();
+        $handler->setOutput($output);
+        $logger->pushHandler($handler);
+
+        $options = array_merge($this->_config->get(self::CFG_KEY), [
+            'jobQueue' =>  $this->_jobQueue,
+            'logger' => $logger
+        ]);
+
+        $worker = new Worker($options);
         $worker->jobQueue = $this->_jobQueue;
+
 
         $worker->run();
     }
