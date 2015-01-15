@@ -34,6 +34,7 @@ class WorkerTest extends Test
      */
     public function runWorkerForOneSecond()
     {
+        $lastJob = null;
         $queue = \Codeception\Util\Stub::makeEmpty('Slick\JobQueue\Queue\Database', [
             'next' => function() {
                 static $count;
@@ -47,11 +48,16 @@ class WorkerTest extends Test
                 ];
 
                 return isset($result[$count]) ? $result[$count++] : null;
+            },
+            'finish' => function($job) use ($lastJob) {
+                $lastJob = $job;
+                return $this;
             }
         ]);
 
         $worker = new \Slick\JobQueue\Worker([
             'timeout' => 1,
+            'sleepTime' => 1,
             'jobQueue' => $queue
         ]);
 

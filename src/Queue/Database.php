@@ -12,8 +12,12 @@
 
 namespace Slick\JobQueue\Queue;
 
+use DateTime;
+use DateTimeZone;
 use Slick\Common\Base;
 use Slick\Database\Sql;
+use Slick\JobQueue\Job\Status;
+use Slick\JobQueue\Model\Task;
 use Slick\JobQueue\Job\JobInterface;
 use Slick\JobQueue\JobQueueInterface;
 use Slick\Database\Adapter\AdapterInterface;
@@ -26,10 +30,15 @@ use Slick\Database\Adapter\AdapterInterface;
  *
  * @property AdapterInterface $adapter
  * @property string $tableName
- * @property \DateTime $queryDate
+ * @property DateTime $queryDate
  */
 class Database extends Base implements JobQueueInterface
 {
+    /**
+     * @var string Mysql date time format
+     */
+    const MYSQL_DATE_FORMAT = 'Y-m-d H:i:s';
+
     /**
      * @readwrite
      * @var AdapterInterface
@@ -44,7 +53,7 @@ class Database extends Base implements JobQueueInterface
 
     /**
      * @readwrite
-     * @var \DateTime
+     * @var DateTime
      */
     protected $_queryDate;
 
@@ -58,12 +67,12 @@ class Database extends Base implements JobQueueInterface
     /**
      * Gets query date for next job retrieve
      *
-     * @return \DateTime
+     * @return DateTime
      */
     public function getQueryDate()
     {
         if (is_null($this->_queryDate)) {
-            $date = new \DateTime('now', new \DateTimeZone('UTC'));
+            $date = new DateTime('now', new \DateTimeZone('UTC'));
             $this->_queryDate = $date;
         }
         return $this->_queryDate;
@@ -78,13 +87,13 @@ class Database extends Base implements JobQueueInterface
      */
     public function next()
     {
-    $record = Sql::createSql($this->adapter)
+        $record = Sql::createSql($this->adapter)
             ->select($this->tableName)
             ->where(
                 [
                     'notBefore <= :date' => [
                         ':date' => $this->getQueryDate()
-                            ->format('Y-m-d H:i:s')
+                            ->format(self::MYSQL_DATE_FORMAT)
                     ]
                 ]
             )
@@ -97,29 +106,59 @@ class Database extends Base implements JobQueueInterface
         $reflection = new \ReflectionClass(
             $this->getClass($record['type'])
         );
-
-        return $reflection->newInstanceArgs([$record]);
+        /** @var Task $job */
+        $job = $reflection->newInstanceArgs([$record]);
+        $job->fetched = $this->getQueryDate()->format(self::MYSQL_DATE_FORMAT);
+        $job->status = Status::Ongoing;
+        $this->save($job);
+        return $job;
     }
 
     /**
      * Adds a job to the queue
-     * @param JobInterface $job
+     * @param JobInterface|Task $job
      * @return JobQueueInterface
      */
     public function add(JobInterface $job)
     {
-        // TODO: Implement add() method.
+        $job->status = Status::Queued;
+        if (is_null($job->notBefore)) {
+            $job->notBefore = $this->getQueryDate()->format(self::MYSQL_DATE_FORMAT);
+        }
+        $this->save($job);
     }
 
     /**
      * Places a job after it been executed
      *
-     * @param JobInterface $job
+     * @param JobInterface|Task $job
      * @return JobQueueInterface
      */
     public function finish(JobInterface $job)
     {
-        // TODO: Implement finish() method.
+        return $this->save($job);
+    }
+
+    /**
+     * Saves current job into DB
+     *
+     * @param Task $job
+     * @return self
+     */
+    public function save(Task $job)
+    {
+
+        if (!is_null($job->id)) {
+            $sql = Sql::createSql($this->adapter)
+                ->insert($this->tableName);
+        } else {
+            $sql = Sql::createSql($this->adapter)
+                ->update($this->tableName)
+                ->where(['id = :id' => [':id' => $job->id]]);
+        }
+        $sql->set($job->asArray())
+            ->execute();
+        return $this;
     }
 
     /**

@@ -12,7 +12,10 @@
 
 namespace Slick\JobQueue\Job;
 
+use DateTime;
+use DateTimeZone;
 use Slick\JobQueue\Model\Task;
+use Slick\JobQueue\Queue\Database;
 
 /**
  * Basic job
@@ -22,6 +25,31 @@ use Slick\JobQueue\Model\Task;
  */
 class Basic extends Task implements JobInterface
 {
+
+    /**
+     * @readwrite
+     * @column
+     * @var string
+     */
+    protected $_type = 'Basic';
+
+    /**
+     * @readwrite
+     * @column
+     * @var string
+     */
+    protected $_created;
+
+    /**
+     * Sets creation date
+     * @param array $options
+     */
+    public function __construct($options = [])
+    {
+        parent::__construct($options);
+        $date = new DateTime('now', new DateTimeZone('UTC'));
+        $this->created = $date->format(Database::MYSQL_DATE_FORMAT);
+    }
 
     /**
      * Executes a job and returns its status

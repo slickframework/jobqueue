@@ -74,6 +74,7 @@ class Worker extends Base implements WorkerInterface
             /** @var Basic $job */
             $job = $this->_jobQueue->next();
             if ($job) {
+                $job->worker = $this;
                 $job->status = $job->execute();
                 $this->_jobsExecuted++;
                 $this->_jobQueue->finish($job);

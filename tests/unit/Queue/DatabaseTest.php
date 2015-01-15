@@ -16,6 +16,8 @@ use Codeception\Util\Stub;
 use Slick\Database\Sql\Dialect;
 use Slick\Database\Sql\Select;
 use Slick\JobQueue\Job\JobInterface;
+use Slick\JobQueue\Job\Status;
+use Slick\JobQueue\Model\Task;
 use UnitTester;
 use Slick\JobQueue\Job\Basic;
 use Codeception\TestCase\Test;
@@ -92,6 +94,7 @@ class DatabaseTest extends Test
      */
     public function getNextTaskFromDatabase()
     {
+        $lastQuery = $lastParams = null;
         $this->tester->am('developer');
         $this->tester->amGoingTo('retrieve the next job from database queue');
         $database = new Database();
@@ -99,7 +102,8 @@ class DatabaseTest extends Test
             0 => [
                 [
                     'id' => 1092,
-                    'type' => 'Basic'
+                    'type' => 'Basic',
+                    'notBefore' => '2015-01-14 22:30:00'
                 ],
             ],
             1 => []
@@ -121,6 +125,11 @@ class DatabaseTest extends Test
                 $expected = "SELECT tasks.* FROM tasks WHERE notBefore <= :date ORDER BY notBefore ASC LIMIT 1";
                 $this->assertEquals($expected, $query);
                 return ($return[$count++]);
+            },
+            'execute' => function($sql, $parameters = []) use($lastQuery, $lastParams) {
+                $lastQuery = $sql;
+                $lastParams = $parameters;
+                return 1;
             }
         ]);
         $database->adapter = $adapter;
@@ -130,6 +139,59 @@ class DatabaseTest extends Test
         $this->tester->amGoingTo('retrieve the next job on database');
         $this->tester->expectTo('get a null stating that are no more jobs in queue');
         $this->assertNull($database->next());
+    }
+
+    /**
+     * A a new job to database queue
+     * @test
+     */
+    public function addANewJobToJobQueue()
+    {
+        $this->tester->am('developer');
+        $this->tester->amGoingTo('add a new job to the database queue');
+        $this->tester->lookForwardTo('can have it running later on a worker instance');
+
+        $database = new Database();
+        $adapter = Stub::makeEmpty('Slick\Database\Adapter\MysqlAdapter', [
+            'getDialect' => function() {return Dialect::MYSQL;},
+            'execute' => function($sql, $parameters = []) use($database) {
+                $this->assertEquals(
+                    $database->queryDate->format(Database::MYSQL_DATE_FORMAT),
+                    $parameters[':notBefore']
+                );
+                $this->assertNotNull($parameters[':created']);
+                return 1;
+            }
+        ]);
+        $database->adapter = $adapter;
+
+        $database->add(new Basic());
+    }
+
+    /**
+     * Trying to put a done job back to the queue
+     * @test
+     */
+    public function putADoneJobBackToQueue()
+    {
+        $this->tester->am('developer');
+        $this->tester->amGoingTo('add a new job to the database queue');
+        $this->tester->lookForwardTo('can have it running later on a worker instance');
+
+        $database = new Database();
+        $adapter = Stub::makeEmpty('Slick\Database\Adapter\MysqlAdapter', [
+            'getDialect' => function() {return Dialect::MYSQL;},
+            'execute' => function($sql, $parameters = []) use($database) {
+
+                $this->assertNotNull($parameters[':created']);
+                $this->assertEquals(Status::Done, $parameters[':status']);
+                return 1;
+            }
+        ]);
+        $database->adapter = $adapter;
+        $job = new Basic();
+        $job->status = $job->execute();
+        $database->finish($job);
     }
 
 }
