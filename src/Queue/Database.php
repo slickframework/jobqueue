@@ -148,7 +148,7 @@ class Database extends Base implements JobQueueInterface
     public function save(Task $job)
     {
 
-        if (!is_null($job->id)) {
+        if (is_null($job->id)) {
             $sql = Sql::createSql($this->adapter)
                 ->insert($this->tableName);
         } else {
