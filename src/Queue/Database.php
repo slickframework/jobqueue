@@ -91,9 +91,12 @@ class Database extends Base implements JobQueueInterface
             ->select($this->tableName)
             ->where(
                 [
-                    'notBefore <= :date' => [
+                    'notBefore <= :date AND
+                    status in (:queued, :postponed)' => [
                         ':date' => $this->getQueryDate()
-                            ->format(self::MYSQL_DATE_FORMAT)
+                            ->format(self::MYSQL_DATE_FORMAT),
+                        ':queued' => Status::Queued,
+                        ':postponed' => Status::Postponed
                     ]
                 ]
             )
