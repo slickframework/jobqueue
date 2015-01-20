@@ -52,12 +52,6 @@ class Database extends Base implements JobQueueInterface
     protected $_tableName = 'tasks';
 
     /**
-     * @readwrite
-     * @var DateTime
-     */
-    protected $_queryDate;
-
-    /**
      * @var array
      */
     protected static $_namespaces = [
@@ -71,11 +65,7 @@ class Database extends Base implements JobQueueInterface
      */
     public function getQueryDate()
     {
-        if (is_null($this->_queryDate)) {
-            $date = new DateTime('now', new \DateTimeZone('UTC'));
-            $this->_queryDate = $date;
-        }
-        return $this->_queryDate;
+        return new DateTime('now', new \DateTimeZone('UTC'));
     }
 
     /**
