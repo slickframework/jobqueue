@@ -48,19 +48,26 @@ class QueueCommand extends Command
     const CFG_KEY = 'worker';
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * Constructor.
      *
+     * @param JobQueueInterface $queue
+     * @param DriverInterface $cfg
+     * @param LoggerInterface|null $logger
      * @param string|null $name The name of the command; passing null means it must be set in configure()
-     *
-     * @throws \LogicException When the command name is empty
      *
      * @api
      */
-    public function __construct(JobQueueInterface $queue, DriverInterface $cfg, $name = null)
+    public function __construct(JobQueueInterface $queue, DriverInterface $cfg, LoggerInterface $logger = null, $name = null)
     {
         parent::__construct($name);
         $this->_jobQueue = $queue;
         $this->_config = $cfg;
+        $this->logger = $logger;
     }
 
     /**
@@ -98,7 +105,8 @@ class QueueCommand extends Command
 
         $options = array_merge($this->_config->get(self::CFG_KEY), [
             'jobQueue' =>  $this->_jobQueue,
-            'logger' => $logger
+            'logger' => $logger,
+            'externalLogger' => $this->logger
         ]);
 
         $worker = new Worker($options);
@@ -106,6 +114,8 @@ class QueueCommand extends Command
 
 
         $worker->run();
+
+        return 0;
     }
 
 }
