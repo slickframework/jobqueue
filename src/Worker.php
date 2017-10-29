@@ -97,7 +97,7 @@ class Worker extends Base implements WorkerInterface
                     $this->_logger->info("Executing job...");
                     $job->status = $job->execute();
                     $this->_jobsExecuted++;
-                    $this->_jobQueue->finish($job);
+                    //$this->_jobQueue->finish($job);
                     $this->_logger->info("... done!\n");
 
                     $time_elapsed_secs = microtime(true) - $jobStarts;
@@ -113,8 +113,9 @@ class Worker extends Base implements WorkerInterface
                         'trace' => $caught->getTraceAsString(),
                     ];
                     $this->error('Queued job failed', $this->addLoggerContext(array_merge($job->asArray(), $data)));
-                } finally {
                     $job->status = Status::Fail;
+                    $this->_logger->info("... fail!\n");
+                } finally {
                     $this->_jobQueue->finish($job);
                 }
 
